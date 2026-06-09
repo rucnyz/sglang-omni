@@ -217,6 +217,9 @@ class PipelineConfig(BaseModel):
     placement_policy: str | None = None
     endpoints: EndpointsConfig = Field(default_factory=EndpointsConfig)
     terminal_stages_fn: str | None = None
+    # Dotted path to a cross-stage admission/scheduling policy (class or zero-arg callable
+    # implementing on_submit/on_complete). None => fire-and-forget (current behavior).
+    admission_policy: str | None = None
     config_cls: str | None = None
 
     def model_post_init(self, __context: Any = None) -> None:

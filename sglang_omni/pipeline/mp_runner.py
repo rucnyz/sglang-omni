@@ -33,6 +33,10 @@ from sglang_omni.pipeline.stage_workers import (
     StageLaunchConfig,
     StageWorkerProcessSpec,
 )
+from sglang_omni.pipeline.admission import (
+    admission_policy_from_env,
+    resolve_admission_policy,
+)
 from sglang_omni.utils.imports import import_string
 
 logger = logging.getLogger(__name__)
@@ -387,12 +391,17 @@ class MultiProcessPipelineRunner:
                 if self._config.terminal_stages_fn
                 else None
             )
+            # Config-declared policy wins; else an env-injected one (A/B experiments).
+            admission_policy = resolve_admission_policy(
+                getattr(self._config, "admission_policy", None)
+            ) or admission_policy_from_env()
             self._coordinator = Coordinator(
                 completion_endpoint=prep.endpoints["completion"],
                 abort_endpoint=prep.endpoints["abort"],
                 entry_stage=prep.entry_stage,
                 terminal_stages=self._config.terminal_stages or None,
                 terminal_stages_resolver=terminal_stages_resolver,
+                admission_policy=admission_policy,
             )
             await self._coordinator.start()
             self._completion_task = asyncio.create_task(

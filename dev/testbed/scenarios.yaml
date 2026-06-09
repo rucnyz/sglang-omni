@@ -1,0 +1,210 @@
+# Declarative testbed matrix: servers (how to launch) + scenarios (what load to drive).
+# The runner (testbed.py) groups scenarios by server, launches each server once, runs its
+# scenarios, then tears it down. A server whose `requires_weights` dir is absent from the
+# local HF cache is skipped (clearly noted) so this file can declare full coverage and only
+# run what's downloaded. Launch via `config:` (yaml pipeline) OR `model_path:` (+extra_args).
+
+# ---------------------------------------------------------------------------
+# SERVERS  (pipeline_shape is documentation; helps reason about which stages exist)
+# ---------------------------------------------------------------------------
+servers:
+  # --- runnable now (weights cached) ---
+  qwen3_omni_coloc:
+    config: examples/configs/qwen3_omni_colocated_h200.yaml
+    colocate: true
+    requires_weights: models--Qwen--Qwen3-Omni-30B-A3B-Instruct
+    pipeline_shape: "preproc -> {image,audio}_encoder -> mm_aggregate -> thinker(MoE) -> decode (+talker_ar -> code2wav for speech)"
+
+  qwen3_tts_0_6b:
+    config: examples/configs/qwen3_tts_0_6b.yaml
+    requires_weights: models--Qwen--Qwen3-TTS-12Hz-0.6B-Base
+    pipeline_shape: "text -> AR(0.6B dense) -> code2wav  (no MoE, no encoders)"
+
+  higgs_tts:
+    model_path: bosonai/higgs-audio-v3-tts-4b
+    requires_weights: models--bosonai--higgs-audio-v3-tts-4b
+    pipeline_shape: "text -> 4B AR -> DAC vocoder  (hot TTS; batched DAC encoder)"
+
+  qwen3_asr:
+    model_path: Qwen/Qwen3-ASR-1.7B
+    requires_weights: models--Qwen--Qwen3-ASR-1.7B
+    pipeline_shape: "audio -> encoder -> 1.7B decoder -> text  (ASR, audio-in/text-out)"
+
+  # --- declared for coverage; skipped until weights are cached ---
+  voxtral_tts:
+    config: examples/configs/voxtral_tts.yaml
+    requires_weights: models--mistralai--Voxtral-4B-TTS-2603
+    pipeline_shape: "text -> 4B AR -> vocoder (speaker-preset TTS)"
+  moss_tts:
+    config: examples/configs/moss_tts.yaml
+    colocate: true
+    requires_weights: models--OpenMOSS-Team--MOSS-TTS-v1.5
+    pipeline_shape: "text -> AR -> vocoder (OpenMOSS TTS)"
+  fish_s2pro:
+    config: examples/configs/s2pro_tts.yaml
+    requires_weights: models--fishaudio--s2-pro
+    pipeline_shape: "text(+ref audio) -> AR -> vocoder (voice-clone TTS)"
+  llada2_uni:
+    model_path: inclusionAI/LLaDA2.0-Uni
+    requires_weights: models--inclusionAI--LLaDA2.0-Uni
+    pipeline_shape: "text -> diffusion LM (uni) -> text  (non-AR decoding)"
+  whisper_asr:
+    model_path: openai/whisper-large-v3
+    requires_weights: models--openai--whisper-large-v3
+    pipeline_shape: "audio -> whisper encoder/decoder -> text (ASR)"
+
+# ---------------------------------------------------------------------------
+# DEFAULTS
+# ---------------------------------------------------------------------------
+defaults:
+  warmup_requests: 8
+  timeout_s: 600
+  repeats: 3                       # repeat each (scenario,point) N times -> mean ± sample stdev
+  regression_tol: 0.20             # ±20% band (shared box noisy); tighten on a quiet host
+  regression_metrics: [ttfa_mean, total_mean, throughput_rps]
+
+# ---------------------------------------------------------------------------
+# SCENARIOS  (server, workload, load). `tags` group them for --filter.
+# omni_chat output is greedy (temperature=0)+fixed seed => deterministic => regression-stable.
+# ---------------------------------------------------------------------------
+scenarios:
+  # ===== Qwen3-Omni: SPEECH (full pipeline; talker+vocoder bottleneck) =====
+  - id: omni_speech_single
+    server: qwen3_omni_coloc
+    tags: [omni, speech, latency]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32}
+    load: {concurrency: [1], num_requests: 16}
+  - id: omni_speech_csweep
+    server: qwen3_omni_coloc
+    tags: [omni, speech, throughput]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32}
+    load: {concurrency: [1, 4, 8, 16, 32], num_requests: 48}
+
+  # ===== Qwen3-Omni: UNDERSTANDING (text-only; thinker-bound, no talker) =====
+  - id: omni_understand_csweep
+    server: qwen3_omni_coloc
+    tags: [omni, understanding, throughput]
+    workload: {client: omni_chat, modalities: [text], max_tokens: 64}
+    load: {concurrency: [1, 4, 8, 16], num_requests: 48}
+
+  # ===== Qwen3-Omni: MIXED traffic (the workload-mix scheduling scenario) =====
+  - id: omni_mixed_fracsweep
+    server: qwen3_omni_coloc
+    tags: [omni, mixed, scheduling]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32, speech_frac_sweep: [0.0, 0.25, 0.5, 0.75, 1.0]}
+    load: {concurrency: [8], num_requests: 48}
+
+  # ===== OPEN-LOOP overload (the regime admission/scheduling policies target) =====
+  # Poisson arrivals at a target rate, decoupled from completion; rate sweep brackets the
+  # closed-loop saturation (~2 rps speech). Use these (not closed-loop) to A/B a policy:
+  #   testbed.py --filter openloop --ab-policy sglang_omni.pipeline.admission.FifoGate \
+  #              --ab-policy-args '{"max_inflight": 8}'
+  - id: omni_speech_openloop
+    server: qwen3_omni_coloc
+    tags: [omni, speech, openloop, scheduling]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32}
+    load: {mode: openloop, rate: [1, 2, 3, 4], duration_s: 40, arrival: poisson, slo_ttfa: 1.0}
+
+  - id: omni_mixed_openloop
+    server: qwen3_omni_coloc
+    tags: [omni, mixed, openloop, scheduling]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32, speech_frac: 0.5}
+    load: {mode: openloop, rate: [2, 4, 6, 8], duration_s: 40, arrival: poisson, slo_ttfa: 1.0}
+
+  - id: tts_qwen_openloop
+    server: qwen3_tts_0_6b
+    tags: [tts, qwen3tts, openloop]
+    workload: {client: tts_speech, references: [{audio_path: docs/_static/audio/ref_voice.wav}]}
+    load: {mode: openloop, rate: [2, 3, 4, 6], duration_s: 40, arrival: poisson, slo_total: 4.0}
+
+  # Qwen3-Omni UNDERSTANDING (text-only, thinker-bound, NO talker) — batches to ~20 rps (plateau);
+  # rates bracket that knee. Expected: no-regression (gate -> L=max, never binds a plateau model).
+  - id: omni_understand_openloop
+    server: qwen3_omni_coloc
+    tags: [omni, understanding, openloop, scheduling]
+    workload: {client: omni_chat, modalities: [text], max_tokens: 64}
+    load: {mode: openloop, rate: [8, 16, 24, 32], duration_s: 40, arrival: poisson, slo_ttfa: 1.0}
+
+  # Higgs-TTS-4B — scales cleanly to ~12 rps (plateau); rates bracket it.
+  - id: tts_higgs_openloop
+    server: higgs_tts
+    tags: [tts, higgs, openloop, scheduling]
+    workload: {client: tts_speech}
+    load: {mode: openloop, rate: [6, 12, 18, 24], duration_s: 40, arrival: poisson, slo_total: 5.0}
+
+  # Qwen3-ASR-1.7B — audio->text, batches to ~18 rps (plateau); rates bracket it.
+  - id: asr_qwen_openloop
+    server: qwen3_asr
+    tags: [asr, openloop, scheduling]
+    workload: {client: asr_transcribe}
+    load: {mode: openloop, rate: [8, 16, 24, 32], duration_s: 40, arrival: poisson, slo_total: 3.0}
+
+  # ===== Qwen3-Omni: LOW-LOAD (fill-bubble / think-time regime) =====
+  - id: omni_speech_lowload
+    server: qwen3_omni_coloc
+    tags: [omni, speech, lowload]
+    workload: {client: omni_chat, modalities: [text, audio], max_tokens: 32, think_time: 3.0}
+    load: {concurrency: [2], num_requests: 16}
+
+  # ===== Qwen3-TTS-0.6B: small TTS pipeline (Base checkpoint REQUIRES a reference clip) =====
+  - id: tts_qwen_single
+    server: qwen3_tts_0_6b
+    tags: [tts, qwen3tts, latency]
+    workload: {client: tts_speech, references: [{audio_path: docs/_static/audio/ref_voice.wav}]}
+    load: {concurrency: [1], num_requests: 16}
+  - id: tts_qwen_csweep
+    server: qwen3_tts_0_6b
+    tags: [tts, qwen3tts, throughput]
+    workload: {client: tts_speech, references: [{audio_path: docs/_static/audio/ref_voice.wav}]}
+    load: {concurrency: [1, 4, 8, 16], num_requests: 48}
+
+  # ===== Higgs TTS 4B: hot TTS (accepts plain text) =====
+  - id: tts_higgs_single
+    server: higgs_tts
+    tags: [tts, higgs, latency]
+    workload: {client: tts_speech}
+    load: {concurrency: [1], num_requests: 12}
+  - id: tts_higgs_csweep
+    server: higgs_tts
+    tags: [tts, higgs, throughput]
+    workload: {client: tts_speech}
+    load: {concurrency: [1, 4, 8, 16], num_requests: 48}
+
+  # ===== Qwen3-ASR 1.7B: audio-in -> text-out =====
+  - id: asr_qwen_single
+    server: qwen3_asr
+    tags: [asr, latency]
+    workload: {client: asr_transcribe}
+    load: {concurrency: [1], num_requests: 16}
+  - id: asr_qwen_csweep
+    server: qwen3_asr
+    tags: [asr, throughput]
+    workload: {client: asr_transcribe}
+    load: {concurrency: [1, 4, 8, 16], num_requests: 48}
+
+  # ===== declared-for-coverage; skip until weights cached =====
+  - id: tts_fish_csweep
+    server: fish_s2pro
+    tags: [tts, fish, throughput, voiceclone]
+    workload: {client: tts_speech, references: [{audio_path: docs/_static/audio/ref_voice.wav}]}
+    load: {concurrency: [1, 8, 16], num_requests: 48}
+  - id: tts_voxtral_csweep
+    server: voxtral_tts
+    tags: [tts, voxtral, throughput]
+    workload: {client: tts_speech, voice: cheerful_female}
+    load: {concurrency: [1, 8, 16], num_requests: 48}
+  - id: tts_moss_csweep
+    server: moss_tts
+    tags: [tts, moss, throughput]
+    workload: {client: tts_speech, voice: alloy}
+    load: {concurrency: [1, 8, 16], num_requests: 48}
+  - id: llada_understand_csweep
+    server: llada2_uni
+    tags: [llada, understanding, throughput]
+    workload: {client: omni_chat, modalities: [text], max_tokens: 64}
+    load: {concurrency: [1, 8, 16], num_requests: 48}
+  - id: asr_whisper_csweep
+    server: whisper_asr
+    tags: [asr, whisper, throughput]
+    workload: {client: asr_transcribe}
+    load: {concurrency: [1, 8, 16], num_requests: 48}

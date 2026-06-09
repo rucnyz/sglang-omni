@@ -1,0 +1,35 @@
+{
+  "id": "tts_higgs_single",
+  "server": "higgs_tts",
+  "tags": [
+    "tts",
+    "higgs",
+    "latency"
+  ],
+  "workload": {
+    "client": "tts_speech"
+  },
+  "closed_loop": true,
+  "repeats": 3,
+  "points": [
+    {
+      "concurrency": 1,
+      "repeats": 3,
+      "ttft_mean": 0.10204982657968585,
+      "ttft_mean_std": 0.0034377660319541204,
+      "ttfa_mean": 0.10204982657968585,
+      "ttfa_mean_std": 0.0034377660319541204,
+      "ttfa_p95": 0.1136121636761042,
+      "ttfa_p95_std": 0.004687006605520874,
+      "total_mean": 0.5010477517482489,
+      "total_mean_std": 0.0205523887950614,
+      "frame_gap_max": 0.51258161268197,
+      "frame_gap_max_std": 0.0828089246660838,
+      "throughput_rps": 1.989620437981527,
+      "throughput_rps_std": 0.08171416422738369,
+      "ok": 36,
+      "total": 36,
+      "errors": []
+    }
+  ]
+}

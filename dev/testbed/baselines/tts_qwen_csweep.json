@@ -1,0 +1,97 @@
+{
+  "id": "tts_qwen_csweep",
+  "server": "qwen3_tts_0_6b",
+  "tags": [
+    "tts",
+    "qwen3tts",
+    "throughput"
+  ],
+  "workload": {
+    "client": "tts_speech",
+    "references": [
+      {
+        "audio_path": "docs/_static/audio/ref_voice.wav"
+      }
+    ]
+  },
+  "closed_loop": true,
+  "repeats": 3,
+  "points": [
+    {
+      "concurrency": 1,
+      "repeats": 3,
+      "ttft_mean": 2.643276955570602,
+      "ttft_mean_std": 0.002147895765509251,
+      "ttfa_mean": 2.643276955570602,
+      "ttfa_mean_std": 0.002147895765509251,
+      "ttfa_p95": 2.8081133733309493,
+      "ttfa_p95_std": 0.011677244889333534,
+      "total_mean": 2.643726930080852,
+      "total_mean_std": 0.002102802761966492,
+      "frame_gap_max": 0.0019027870148420334,
+      "frame_gap_max_std": 0.0023870046726975343,
+      "throughput_rps": 0.37816794733484954,
+      "throughput_rps_std": 0.00030105424153553184,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 4,
+      "repeats": 3,
+      "ttft_mean": 2.495360717067847,
+      "ttft_mean_std": 0.3365452593697786,
+      "ttfa_mean": 2.495360717067847,
+      "ttfa_mean_std": 0.3365452593697786,
+      "ttfa_p95": 3.1933459063099385,
+      "ttfa_p95_std": 0.22006875343469393,
+      "total_mean": 2.4958225024173673,
+      "total_mean_std": 0.33655217707968327,
+      "frame_gap_max": 0.0005474733382773896,
+      "frame_gap_max_std": 5.8235369159911e-05,
+      "throughput_rps": 1.618550905612296,
+      "throughput_rps_std": 0.22405297856145898,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 8,
+      "repeats": 3,
+      "ttft_mean": 2.6228824083817828,
+      "ttft_mean_std": 0.23472685539042723,
+      "ttfa_mean": 2.6228824083817828,
+      "ttfa_mean_std": 0.23472685539042723,
+      "ttfa_p95": 3.403884893322053,
+      "ttfa_p95_std": 0.0780576279610466,
+      "total_mean": 2.623444317305257,
+      "total_mean_std": 0.23466994304119757,
+      "frame_gap_max": 0.0006584199727512896,
+      "frame_gap_max_std": 0.00017522579272633582,
+      "throughput_rps": 3.0356081637216086,
+      "throughput_rps_std": 0.25121168118764164,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 16,
+      "repeats": 3,
+      "ttft_mean": 35.13234492973627,
+      "ttft_mean_std": 3.83470364355995,
+      "ttfa_mean": 35.13234492973627,
+      "ttfa_mean_std": 3.83470364355995,
+      "ttfa_p95": 126.37230134130611,
+      "ttfa_p95_std": 16.496208929323142,
+      "total_mean": 35.136614184905035,
+      "total_mean_std": 3.835343806326828,
+      "frame_gap_max": 0.00794975069584325,
+      "frame_gap_max_std": 0.00918843090654819,
+      "throughput_rps": 0.3084305003761003,
+      "throughput_rps_std": 0.0364954233610784,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    }
+  ]
+}

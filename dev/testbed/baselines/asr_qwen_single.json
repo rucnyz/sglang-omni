@@ -1,0 +1,34 @@
+{
+  "id": "asr_qwen_single",
+  "server": "qwen3_asr",
+  "tags": [
+    "asr",
+    "latency"
+  ],
+  "workload": {
+    "client": "asr_transcribe"
+  },
+  "closed_loop": true,
+  "repeats": 3,
+  "points": [
+    {
+      "concurrency": 1,
+      "repeats": 3,
+      "ttft_mean": 0.10086800141895462,
+      "ttft_mean_std": 0.012153829869042546,
+      "ttfa_mean": null,
+      "ttfa_mean_std": 0.0,
+      "ttfa_p95": null,
+      "ttfa_p95_std": 0.0,
+      "total_mean": 0.10086800141895462,
+      "total_mean_std": 0.012153829869042546,
+      "frame_gap_max": null,
+      "frame_gap_max_std": 0.0,
+      "throughput_rps": 9.85660104767708,
+      "throughput_rps_std": 1.2519044304161062,
+      "ok": 48,
+      "total": 48,
+      "errors": []
+    }
+  ]
+}
