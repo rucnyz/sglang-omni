@@ -428,20 +428,16 @@ gain) — whereas shedding wins because it bounds latency regardless of where th
 (Honest: corrected goodput is lower than the earlier over-counted metric; per-repeat seeds expose
 real metastable-knee variance, e.g. ASR R=24 ±8.6. The table is the *total*-latency shed.)
 
-**ttfa-SLO shedding (`slo_metric="ttfa"`) — implemented + unit-tested + mechanism-validated; a
-FUNDAMENTAL limitation found.** A second predictor under the same gate targets a
-time-to-first-token SLO: the coordinator fires `on_first_token` on a request's first content-bearing
-stream message → the gate learns ttft and predicts ttfa as `queue_wait + ttft_ewma`; sheds if that
-exceeds the SLO. The mechanism works on the live server (`on_first_token` fires, shedding triggers
-under overload). **But it cannot tightly bound the omni-SPEECH ttfa**: the gate observes the first
-*text* token (thinker), while the SLO is on first *audio* produced by the decoupled downstream
-talker→code2wav stages — so shedding fires but the audio first-token is downstream of the signal
-(observed: shed arm still ~17–21s ttfa-p95 at overload). This limit does NOT apply to
-single-modality text streaming (omni-understand), where first-content = first-token = the SLO — but
-that clean validation was additionally blocked by the omni-coloc server repeatedly failing to start
-(`image_encoder died, exit code -9` — shared-box startup fragility) / loading degraded. So:
-server-side ttft shedding is sound for single-modality streaming; a *downstream-modality* SLO needs
-a downstream first-token signal (future work). See DESIGN.md §3.
+**ttfa-SLO shedding (`slo_metric="ttfa"`) — ATTEMPTED, ABANDONED, REVERTED.** A second predictor
+(`on_first_token` hook + `queue_wait + ttft_ewma`) targeting a time-to-first-token SLO was
+implemented and unit-tested, but produced **no demonstrated improvement on any scenario** and was
+reverted. The limitation is fundamental: for omni-SPEECH the gate observes the first *text* token
+(thinker) while the SLO is on first *audio*, produced by the decoupled downstream talker→code2wav
+stages it can't influence — so shedding fired but couldn't bound the audio ttfa (shed arm still
+~17–21s ttfa-p95 at overload). The single-modality case (omni-understand, text-only) where it would
+be sound couldn't be validated cleanly because the omni-coloc server kept failing to start /
+loading degraded on this shared box. Net negative result; see DESIGN.md §3. The robust goodput
+protection is the *total*-latency shed table above.
 
 **Methodology hardening (so the comparison is valid).** Three *testbed* bugs surfaced during
 validation, each of which had silently confounded earlier numbers:

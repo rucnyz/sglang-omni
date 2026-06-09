@@ -281,40 +281,23 @@ the per-repeat seeds expose real metastable-knee variance (e.g. ASR R=24 ±8.6 �
 is bimodal there). The table above is the *total*-latency shed (TTS/ASR/Higgs); ttfa-SLO shedding
 is below.
 
-### Deadline shedding on a time-to-first-token SLO (`slo_metric="ttfa"`)
+### Deadline shedding on a time-to-first-token SLO — ATTEMPTED, ABANDONED
 
-**Motivation.** Streaming models (omni speech/understand) have a *time-to-first-token* SLO, not a
-total-completion one — the total-latency predictor doesn't map to it.
+A `slo_metric="ttfa"` variant (an `on_first_token` hook + a `queue_wait + ttft_ewma` predictor)
+was implemented and unit-tested, but **abandoned and reverted** because it does not work and the
+limitation is fundamental, not fixable by tuning:
 
-**Solution.** A second predictor under the same gate. The gate learns first-token latency via an
-`on_first_token(request_id)` hook the coordinator fires on a request's **first content-bearing
-stream message** (`_has_content`, skipping empty/boundary messages a multi-stage pipeline emits
-first — the *wrong* trigger gives a ~0 ttft). It then predicts a new request's ttfa as
-`queue_wait + ttft_ewma` (queue_wait = waiters-ahead / completion-rate; the observed first-token
-latency rises with load). Sheds iff `predicted_ttfa > slo_s`; fail-open until a ttft estimate exists.
+- **The gate can't bound a *downstream-modality* SLO.** It only observes what flows through the
+  coordinator stream — for omni-speech that's the first **text** token (thinker), whereas the SLO
+  is on first **audio**, produced later by the *decoupled* downstream talker→code2wav stages.
+  Shedding fired but couldn't bound the audio ttfa (shed arm still ~17–21s ttfa-p95 at overload).
+- It would be sound for *single-modality* streaming (omni-understand, text-only — first content
+  token *is* the SLO token), but that clean validation was also blocked by the omni-coloc server's
+  repeated startup crashes / degraded loads on this shared box.
 
-**Code.** `admission.py` (`slo_metric`, `on_first_token`, `_ttft_ewma`, the ttfa branch of the shed
-check); `coordinator.py` (`_notify_first_token` on the first content message, `_has_content`).
-**Tests.** `test_admission.py`: `test_on_first_token_tracks_ttft`, `test_ttfa_shedding`, fail-open.
-
-**Status — implemented + unit-tested + mechanism-validated; a FUNDAMENTAL limitation found, and a
-clean A/B additionally blocked by the omni server.** On the live server `on_first_token` fires and
-ttft populates (`[ADMTTFT]` ≈ 328 samples in a warmup) and shedding triggers under overload — the
-mechanism works. **But the shed cannot tightly bound the omni-speech ttfa**, for an architectural
-reason worth recording: the gate can only observe what flows through the coordinator stream, which
-for omni-speech is the **first TEXT token** (from the thinker), whereas the SLO is on **first
-AUDIO** — produced later by the *decoupled* downstream talker→code2wav stages the gate can't
-influence via first-text-based shedding. Empirically the shed arm still showed ttfa-p95 ~17–21s at
-overload (vs ~1s target): shedding fires but the audio first-token is downstream of the signal.
-This limit does **not** apply to single-modality streaming (omni-understand, text-only — there the
-first content token *is* the SLO-relevant one), but that clean validation was additionally blocked
-by the **omni-coloc** server repeatedly failing to start (`Process image_encoder died during
-startup, exit code -9` — host-RAM/startup fragility on this shared box) or loading 10–100×
-degraded — an environment block, not the policy. (An alternative `predicted_total × ttft/total`
-predictor was tried and rejected: the text/total *fraction* is tiny for omni-speech, so it sheds
-even less.) **Takeaways:** server-side ttft shedding is sound for single-modality streaming;
-protecting a *downstream-modality* SLO needs a downstream first-token signal (future work);
-TTS delivers one CompleteMessage (no incremental tokens) so ttft≡total there.
+Net: a **negative result** — no demonstrated improvement on any scenario; the code was reverted.
+The robust goodput protection is the *total*-latency shed above. Protecting a downstream-modality
+SLO would need a downstream first-token signal — not pursued.
 
 ---
 

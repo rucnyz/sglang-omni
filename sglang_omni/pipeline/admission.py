@@ -63,13 +63,6 @@ class AdmissionPolicy(Protocol):
         """
         ...
 
-    def on_first_token(self, request_id: str) -> None:
-        """Optional: called when a streaming request produces its FIRST output chunk (its
-        time-to-first-token / first-audio moment). Lets a deadline policy learn ttft so it can
-        shed against a time-to-first-token SLO. Must tolerate ids it never admitted; default no-op.
-        """
-        ...
-
 
 class NoOpAdmission:
     """Default policy: admit immediately. Preserves the fire-and-forget behavior exactly."""
@@ -78,9 +71,6 @@ class NoOpAdmission:
         return
 
     def on_complete(self, request_id: str) -> None:
-        return
-
-    def on_first_token(self, request_id: str) -> None:
         return
 
 
@@ -126,7 +116,6 @@ class AdaptiveGate:
         sat_frac: float = 0.75,
         outlier_cap: float = 2.0,
         slo_s: float | None = None,
-        slo_metric: str = "total",
     ):
         self._adapt = bool(adapt)
         # min_limit is a sane "minimum useful concurrency" FLOOR: the gate never admits fewer
@@ -154,13 +143,10 @@ class AdaptiveGate:
         #   smoothed estimate as a measurement artifact (a completion clump): real throughput can't
         #   jump that much in one window, so capping it keeps best_tput from being poisoned.
         self.slo_s = None if slo_s is None else float(slo_s)  # per-request latency deadline (s).
-        #   When set, SHED (reject) a request whose predicted latency already exceeds the deadline,
-        #   instead of queueing it to certainly miss SLO — this protects goodput under overload
-        #   (the gate alone restores throughput but the wait queue still grows). None = pure
-        #   queueing (no shedding), so AdaptiveGate(slo_s=None) == the queue-only gate.
-        self.slo_metric = slo_metric  # "total" => deadline on time-in-system ((in_system+1)/cap);
-        #   "ttfa" => deadline on time-to-first-token (queue_wait + observed ttft). The latter is
-        #   for streaming models whose SLO is first-token latency, not full completion.
+        #   When set, SHED (reject) a request whose predicted time-in-system already exceeds the
+        #   deadline, instead of queueing it to certainly miss SLO — this protects goodput under
+        #   overload (the gate alone restores throughput but the wait queue still grows). None =
+        #   pure queueing (no shedding), so AdaptiveGate(slo_s=None) == the queue-only gate.
         self.up_factor = float(up_factor)           # multiplicative probe-up. SMALL on purpose:
         #   discovering a cliff online (vs a plateau) is only possible by stepping past it and
         #   observing whether throughput holds (plateau -> keep rising to max) or drops (cliff
@@ -194,7 +180,6 @@ class AdaptiveGate:
         self._best_limit = self._limit
         self._ceiling = self.max_limit  # lowest L observed to collapse (none yet)
         self._tput_ewma: float | None = None  # smoothed throughput (noise-robust collapse test)
-        self._ttft_ewma: float | None = None   # smoothed time-to-first-token (for slo_metric=ttfa)
         self._steps = 0                         # control-step counter (observability)
         self._win_inflight_peak = 0             # peak in-flight seen this window (vs limit ->
         #                                         "is the limit binding?"; see sat_frac)
@@ -210,39 +195,22 @@ class AdaptiveGate:
     async def on_submit(self, ctx: AdmissionContext) -> None:
         if self._passthrough:
             return
-        # Deadline-aware shedding (fail-open). If admitting this request would predict a latency
-        # past its deadline, refuse it now so capacity goes to requests that CAN still meet SLO.
-        #   slo_metric="total": time-in-system of a newly-arriving request is, by Little's law,
-        #     ~ (in-system + 1) / DRAIN RATE, in-system = in-flight + queued. Drain rate is the
-        #     service CAPACITY (best_tput), NOT the current (possibly arrival-limited) throughput,
-        #     which would overestimate the wait and over-shed below capacity.
-        #   slo_metric="ttfa": time-to-first-token ~ queue_wait + ttft, where queue_wait =
-        #     (waiters ahead)/capacity (slots free at the completion rate) and ttft is the observed
-        #     first-token latency (rises with server load, so this sheds once first-token is slow).
-        # Both fail open: no slo_s, no estimate yet, or prediction within deadline => never shed
-        # (so low load never sheds, and a static FifoGate — no estimates — never sheds).
-        if self.slo_s is not None:
-            if self.slo_metric == "ttfa":
-                if self._ttft_ewma is not None:
-                    # ttfa ~ queue_wait (the waiters ahead drain at the completion rate) + the
-                    # observed first-token latency. NOTE (documented limitation): this only bounds
-                    # the SLO when the observed first token IS the SLO-relevant one — true for
-                    # single-modality streaming (text), but for a dual-modality model whose SLO is
-                    # first-AUDIO, the gate observes the earlier first-TEXT token (a decoupled
-                    # upstream stage), so it can shed but cannot tightly bound the audio ttfa.
-                    qwait = (len(self._waiters) / self._best_tput) if self._best_tput > 0 else 0.0
-                    predicted = qwait + self._ttft_ewma
-                    if predicted > self.slo_s:
-                        raise AdmissionRejected(
-                            f"predicted ttfa {predicted:.2f}s > slo {self.slo_s:.2f}s "
-                            f"(qwait={qwait:.2f}, ttft={self._ttft_ewma:.2f})")
-            elif self._best_tput > 0:  # "total"
-                in_system = self._inflight + len(self._waiters)
-                predicted = (in_system + 1) / self._best_tput
-                if predicted > self.slo_s:
-                    raise AdmissionRejected(
-                        f"predicted {predicted:.1f}s > slo {self.slo_s:.1f}s "
-                        f"(in_system={in_system}, cap={self._best_tput:.2f}/s)")
+        # Deadline-aware shedding (fail-open). If admitting this request would predict a
+        # completion past its deadline, refuse it now so capacity goes to requests that CAN
+        # still meet SLO. By Little's law the time-in-system of a newly-arriving request is
+        # ~ (current in-system + 1) / DRAIN RATE, where in-system = in-flight + queued. The drain
+        # rate is the service CAPACITY (best_tput), NOT the current throughput: below capacity the
+        # current rate is arrival-limited (e.g. 1.7/s when offered<capacity) and would overestimate
+        # the wait and over-shed; the queue actually drains at capacity. Only acts when slo_s is
+        # set AND a capacity estimate exists (adaptive) AND the prediction exceeds the deadline —
+        # so at low load (short queue) nothing is shed, and a static FifoGate never sheds.
+        if self.slo_s is not None and self._best_tput > 0:
+            in_system = self._inflight + len(self._waiters)
+            predicted = (in_system + 1) / self._best_tput
+            if predicted > self.slo_s:
+                raise AdmissionRejected(
+                    f"predicted {predicted:.1f}s > slo {self.slo_s:.1f}s "
+                    f"(in_system={in_system}, cap={self._best_tput:.2f}/s)")
         # Fast path: a slot is free AND nobody is already queued (preserve FIFO fairness).
         if self._inflight < self._cap() and not self._waiters:
             self._inflight += 1
@@ -303,18 +271,6 @@ class AdaptiveGate:
             if not fut.done():
                 fut.cancel()
         # else: unknown id -> idempotent no-op.
-
-    def on_first_token(self, request_id: str) -> None:
-        """Record time-to-first-token for an admitted request (feeds the ttfa-SLO shed predictor).
-        ttft = now - admit_time. EWMA-smoothed, same alpha as throughput. No-op for unknown ids."""
-        t0 = self._admit.get(request_id)
-        if t0 is None:
-            return
-        ttft = max(0.0, time.perf_counter() - t0)
-        self._ttft_ewma = ttft if self._ttft_ewma is None else (
-            (1.0 - self.ewma_alpha) * self._ttft_ewma + self.ewma_alpha * ttft)
-        if self._log:
-            print(f"[ADMTTFT] rid={request_id} ttft={ttft:.2f} ewma={self._ttft_ewma:.2f}", flush=True)
 
     def _observe(self, now: float) -> None:
         """Throughput-gradient control, fail-open. One step per ``window_s`` of wall time.
