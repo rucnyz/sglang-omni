@@ -24,6 +24,20 @@ from sglang_omni.proto import (
 logger = logging.getLogger(__name__)
 
 
+def _has_content(msg) -> bool:
+    """Does this stream message carry non-empty output (a token/audio chunk or a result)? Used to
+    mark time-to-first-token: skip empty/boundary messages a multi-stage pipeline may emit first."""
+    for v in (getattr(msg, "chunk", None), getattr(msg, "result", None)):
+        if v is None:
+            continue
+        if hasattr(v, "__len__"):
+            if len(v) > 0:
+                return True
+        else:
+            return True
+    return False
+
+
 class Coordinator:
     """Central coordinator for the multi-stage pipeline.
 
@@ -163,6 +177,12 @@ class Coordinator:
         if self._admission_policy is not None:
             self._admission_policy.on_complete(request_id)
 
+    def _notify_first_token(self, request_id: str) -> None:
+        """Tell the admission policy a streaming request just produced its first output chunk
+        (its time-to-first-token), so a ttfa-deadline policy can learn ttft."""
+        if self._admission_policy is not None:
+            self._admission_policy.on_first_token(request_id)
+
     async def stream(
         self, request_id: str, request: OmniRequest | Any
     ) -> AsyncIterator[CompleteMessage | StreamMessage]:
@@ -178,8 +198,17 @@ class Coordinator:
             expected_terminal_stages = self._expected_terminal_stages(request_id)
 
             completed_stages: set[str] = set()
+            first_token_seen = False
             while True:
                 msg = await queue.get()
+                # First message carrying non-empty CONTENT = time-to-first-token. NOT the first
+                # message overall: a multi-stage pipeline can emit an empty/boundary message first
+                # (giving a misleadingly ~0 ttft). For a model that returns one full result
+                # (no incremental streaming), this is just total completion time, which is the
+                # correct ttft in that case.
+                if not first_token_seen and _has_content(msg):
+                    first_token_seen = True
+                    self._notify_first_token(request_id)
                 if isinstance(msg, CompleteMessage):
                     if not msg.success:
                         raise RuntimeError(msg.error or "Unknown error")

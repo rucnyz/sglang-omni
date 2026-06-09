@@ -17,6 +17,22 @@ NoOpAdmission                              # the framework's current behaviour (
 Each is a strict special case of the next (`slo_s=None`, `adapt=False`, or absent ⇒ the simpler
 behaviour), so there is no policy selection or fallback — only one knob-set with degenerate points.
 
+## TL;DR — what wins where (two mechanisms, two scopes)
+
+The policy has **two mechanisms on two independent axes**, and each "wins" in a different scope —
+both are no-ops below capacity (admission control only acts under overload):
+
+| mechanism | what it does | wins where | on the tested models |
+|--|--|--|--|
+| **concurrency gate** (`AdaptiveGate`) | bounds in-flight at the throughput knee | only where the pipeline has a **collapse cliff** (raising concurrency *drops* throughput) | **1 win** (TTS); the plateau models (omni speech/understand/mixed, Higgs, ASR) have no collapse to prevent → gate provably `L→max`, inactive → **no-regression by construction** |
+| **deadline shedding** (`slo_s`) | drops requests that can't meet their deadline | wherever there is **overload** (a growing queue) — which is *every* model past capacity | **wins on all 3 tested** (TTS/ASR/Higgs): goodput up, p99 pinned at the SLO vs 28–74 s |
+
+So the honest one-liner: **the gate wins only where a model collapses (TTS among those tested);
+shedding wins wherever a model is overloaded (all of them). Below capacity both are transparent
+(no-regression).** "Only one place wins" is true *for the gate alone* — shedding broadens the win
+to every overloaded model. (One near-capacity wrinkle: at ~capacity, Higgs R=12, shedding trades a
+little goodput; the clear shedding win is *above* capacity.)
+
 ---
 
 ## 0. The gap in the framework (root motivation)
@@ -262,8 +278,43 @@ gain) — whereas shedding wins because it bounds latency **regardless of where 
 
 **Honest scope.** Corrected goodput magnitudes are lower than the earlier (over-counted) metric;
 the per-repeat seeds expose real metastable-knee variance (e.g. ASR R=24 ±8.6 — the no-policy arm
-is bimodal there). ttfa-SLO models (omni speech/understand) are *not* shed here — shedding predicts
-*total* time-in-system, which doesn't map to a time-to-first-token deadline (future work).
+is bimodal there). The table above is the *total*-latency shed (TTS/ASR/Higgs); ttfa-SLO shedding
+is below.
+
+### Deadline shedding on a time-to-first-token SLO (`slo_metric="ttfa"`)
+
+**Motivation.** Streaming models (omni speech/understand) have a *time-to-first-token* SLO, not a
+total-completion one — the total-latency predictor doesn't map to it.
+
+**Solution.** A second predictor under the same gate. The gate learns first-token latency via an
+`on_first_token(request_id)` hook the coordinator fires on a request's **first content-bearing
+stream message** (`_has_content`, skipping empty/boundary messages a multi-stage pipeline emits
+first — the *wrong* trigger gives a ~0 ttft). It then predicts a new request's ttfa as
+`queue_wait + ttft_ewma` (queue_wait = waiters-ahead / completion-rate; the observed first-token
+latency rises with load). Sheds iff `predicted_ttfa > slo_s`; fail-open until a ttft estimate exists.
+
+**Code.** `admission.py` (`slo_metric`, `on_first_token`, `_ttft_ewma`, the ttfa branch of the shed
+check); `coordinator.py` (`_notify_first_token` on the first content message, `_has_content`).
+**Tests.** `test_admission.py`: `test_on_first_token_tracks_ttft`, `test_ttfa_shedding`, fail-open.
+
+**Status — implemented + unit-tested + mechanism-validated; a FUNDAMENTAL limitation found, and a
+clean A/B additionally blocked by the omni server.** On the live server `on_first_token` fires and
+ttft populates (`[ADMTTFT]` ≈ 328 samples in a warmup) and shedding triggers under overload — the
+mechanism works. **But the shed cannot tightly bound the omni-speech ttfa**, for an architectural
+reason worth recording: the gate can only observe what flows through the coordinator stream, which
+for omni-speech is the **first TEXT token** (from the thinker), whereas the SLO is on **first
+AUDIO** — produced later by the *decoupled* downstream talker→code2wav stages the gate can't
+influence via first-text-based shedding. Empirically the shed arm still showed ttfa-p95 ~17–21s at
+overload (vs ~1s target): shedding fires but the audio first-token is downstream of the signal.
+This limit does **not** apply to single-modality streaming (omni-understand, text-only — there the
+first content token *is* the SLO-relevant one), but that clean validation was additionally blocked
+by the **omni-coloc** server repeatedly failing to start (`Process image_encoder died during
+startup, exit code -9` — host-RAM/startup fragility on this shared box) or loading 10–100×
+degraded — an environment block, not the policy. (An alternative `predicted_total × ttft/total`
+predictor was tried and rejected: the text/total *fraction* is tiny for omni-speech, so it sheds
+even less.) **Takeaways:** server-side ttft shedding is sound for single-modality streaming;
+protecting a *downstream-modality* SLO needs a downstream first-token signal (future work);
+TTS delivers one CompleteMessage (no incremental tokens) so ttft≡total there.
 
 ---
 

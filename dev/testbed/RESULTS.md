@@ -426,8 +426,22 @@ barely have made it); the clear win is just above capacity (R≥18). Queue-only 
 *inconsistent* — it helps ASR but **hurts** Higgs (clamping a batching model adds latency for no
 gain) — whereas shedding wins because it bounds latency regardless of where the wait sits.
 (Honest: corrected goodput is lower than the earlier over-counted metric; per-repeat seeds expose
-real metastable-knee variance, e.g. ASR R=24 ±8.6. ttfa-SLO models (omni speech/understand) aren't
-shown — shedding predicts *total* time-in-system, which doesn't map to a ttfa deadline; future work.)
+real metastable-knee variance, e.g. ASR R=24 ±8.6. The table is the *total*-latency shed.)
+
+**ttfa-SLO shedding (`slo_metric="ttfa"`) — implemented + unit-tested + mechanism-validated; a
+FUNDAMENTAL limitation found.** A second predictor under the same gate targets a
+time-to-first-token SLO: the coordinator fires `on_first_token` on a request's first content-bearing
+stream message → the gate learns ttft and predicts ttfa as `queue_wait + ttft_ewma`; sheds if that
+exceeds the SLO. The mechanism works on the live server (`on_first_token` fires, shedding triggers
+under overload). **But it cannot tightly bound the omni-SPEECH ttfa**: the gate observes the first
+*text* token (thinker), while the SLO is on first *audio* produced by the decoupled downstream
+talker→code2wav stages — so shedding fires but the audio first-token is downstream of the signal
+(observed: shed arm still ~17–21s ttfa-p95 at overload). This limit does NOT apply to
+single-modality text streaming (omni-understand), where first-content = first-token = the SLO — but
+that clean validation was additionally blocked by the omni-coloc server repeatedly failing to start
+(`image_encoder died, exit code -9` — shared-box startup fragility) / loading degraded. So:
+server-side ttft shedding is sound for single-modality streaming; a *downstream-modality* SLO needs
+a downstream first-token signal (future work). See DESIGN.md §3.
 
 **Methodology hardening (so the comparison is valid).** Three *testbed* bugs surfaced during
 validation, each of which had silently confounded earlier numbers:

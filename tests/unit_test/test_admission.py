@@ -6,6 +6,7 @@ and the AdaptiveGate throughput controller's convergence on synthetic load curve
 """
 import asyncio
 import random
+import time
 
 import pytest
 
@@ -205,6 +206,31 @@ def test_deadline_shedding_sheds_when_predicted_misses_slo():
         assert await _shed_or(g, _ctx("a")) == "admitted"   # (0+1)/4=0.25s < 2 -> admit
         g._inflight = 12                          # (12+1)/4=3.25s > 2 -> shed
         assert await _shed_or(g, _ctx("b")) == "shed"
+    asyncio.run(run())
+
+
+def test_on_first_token_tracks_ttft():
+    """on_first_token records ttft = now - admit_time into _ttft_ewma; ignores unknown ids."""
+    async def run():
+        g = AdaptiveGate(min_limit=8, slo_s=1.0, slo_metric="ttfa")
+        await g.on_submit(_ctx("a"))            # admits (fast path) -> _admit["a"] set
+        g._admit["a"] = time.perf_counter() - 0.3   # pretend admitted 0.3s ago
+        g.on_first_token("a")
+        assert g._ttft_ewma is not None and 0.25 < g._ttft_ewma < 0.5
+        g.on_first_token("never-admitted")      # no-op, no error
+    asyncio.run(run())
+
+
+def test_ttfa_shedding():
+    """slo_metric='ttfa': shed when predicted first-token time (queue_wait + observed ttft) > slo;
+    fail-open until a ttft estimate exists."""
+    async def run():
+        g = AdaptiveGate(min_limit=8, max_limit=64, slo_s=1.0, slo_metric="ttfa")
+        assert await _shed_or(g, _ctx("a")) != "shed"   # no ttft estimate -> fail-open
+        g._ttft_ewma = 1.5                                # observed first-token 1.5s > slo 1.0
+        assert await _shed_or(g, _ctx("b")) == "shed"
+        g._ttft_ewma = 0.4                                # fast first-token, no queue -> admit
+        assert await _shed_or(g, _ctx("c")) != "shed"
     asyncio.run(run())
 
 
