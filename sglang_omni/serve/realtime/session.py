@@ -11,6 +11,7 @@ from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
 from sglang_omni.client import Client, GenerateRequest, Message, SamplingParams
+from sglang_omni.pipeline.admission import AdmissionRejected
 from sglang_omni.serve.realtime.audio_buffer import RealtimeAudioBuffer
 from sglang_omni.serve.realtime.events import (
     InputAudioBufferAppend,
@@ -324,6 +325,31 @@ class RealtimeSession:
                 )
             )
             return response_text
+        except AdmissionRejected as exc:
+            # An admission policy shed this turn (overload deadline shedding). response.created
+            # was already sent, so close the lifecycle with a failed response.done — otherwise
+            # the client tracks the response as in-progress forever (the drain loop swallows the
+            # raised exception, so surfacing it here is the only signal).
+            await self.send(
+                make_event(
+                    "response.done",
+                    response={
+                        "id": response_id,
+                        "object": "realtime.response",
+                        "status": "failed",
+                        "status_details": {
+                            "type": "failed",
+                            "error": {
+                                "type": "server_error",
+                                "code": "rate_limit_exceeded",
+                                "message": f"admission_rejected: {exc}",
+                            },
+                        },
+                        "output": [],
+                    },
+                )
+            )
+            return ""
         finally:
             self.active_request_id = None
 
@@ -359,6 +385,18 @@ class RealtimeSession:
                 )
             )
             return transcript
+        except AdmissionRejected:
+            # Shed: emit the terminal completed event (empty) so the client's transcription
+            # lifecycle closes instead of hanging.
+            await self.send(
+                make_event(
+                    "conversation.item.input_audio_transcription.completed",
+                    item_id=item_id,
+                    content_index=0,
+                    transcript="",
+                )
+            )
+            return ""
         finally:
             self.active_request_id = None
 

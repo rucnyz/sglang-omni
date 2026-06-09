@@ -46,6 +46,7 @@ from sglang_omni.client.audio import (
 )
 from sglang_omni.http.favicon import register_favicon
 from sglang_omni.models.tts_streaming import INITIAL_CODEC_CHUNK_FRAMES_PARAM
+from sglang_omni.pipeline.admission import AdmissionRejected
 from sglang_omni.serve.protocol import (
     ChatCompletionAudio,
     ChatCompletionChoice,
@@ -175,19 +176,33 @@ def _register_chat_completions(app: FastAPI) -> None:
             audio_format = req.audio.get("format", "wav")
 
         if req.stream:
-            return StreamingResponse(
-                _chat_stream(
-                    client,
-                    gen_req,
-                    request_id,
-                    response_id,
-                    created,
-                    model,
-                    req,
-                    audio_format,
-                ),
-                media_type="text/event-stream",
+            # Peek the first chunk before returning the streaming response, so an admission SHED
+            # (raised at submit, i.e. on the first iteration) becomes a clean 429 — once the
+            # StreamingResponse's 200 headers are sent we could no longer signal rejection.
+            gen = _chat_stream(
+                client, gen_req, request_id, response_id, created, model, req, audio_format
             )
+            try:
+                first_chunk = await gen.__anext__()
+            except StopAsyncIteration:
+                first_chunk = None
+            except AdmissionRejected as exc:
+                raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
+
+            async def _with_first():
+                try:
+                    if first_chunk is not None:
+                        yield first_chunk
+                    async for chunk in gen:
+                        yield chunk
+                finally:
+                    # Close the inner generator deterministically. If the client disconnects
+                    # while suspended at the first yield (before the async-for entered gen),
+                    # GeneratorExit would otherwise leave gen open until GC — deferring the
+                    # coordinator.stream finally that releases the admission slot.
+                    await gen.aclose()
+
+            return StreamingResponse(_with_first(), media_type="text/event-stream")
 
         return await _chat_non_stream(
             client,
@@ -218,6 +233,8 @@ async def _chat_non_stream(
             request_id=request_id,
             audio_format=audio_format,
         )
+    except AdmissionRejected as exc:
+        raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
     except ClientError as exc:
         if _is_bad_request_error(exc):
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -517,6 +534,8 @@ def _register_speech(app: FastAPI) -> None:
                         request_id=request_id,
                         speed=req.speed,
                     )
+                except AdmissionRejected as exc:
+                    raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
                 except ClientError as exc:
                     raise HTTPException(status_code=500, detail=str(exc)) from exc
                 except Exception as exc:
@@ -525,16 +544,32 @@ def _register_speech(app: FastAPI) -> None:
                         request_id,
                     )
                     raise HTTPException(status_code=500, detail=str(exc)) from exc
-            return StreamingResponse(
-                _speech_stream(
-                    client=client,
-                    gen_req=gen_req,
-                    request_id=request_id,
-                    response_format=req.response_format,
-                    speed=req.speed,
-                ),
-                media_type="text/event-stream",
+            # Peek the first chunk so an admission SHED becomes a clean 429 before the
+            # StreamingResponse's 200 headers are sent (same pattern as the chat-stream path).
+            sse_gen = _speech_stream(
+                client=client,
+                gen_req=gen_req,
+                request_id=request_id,
+                response_format=req.response_format,
+                speed=req.speed,
             )
+            try:
+                sse_first = await sse_gen.__anext__()
+            except StopAsyncIteration:
+                sse_first = None
+            except AdmissionRejected as exc:
+                raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
+
+            async def _sse_with_first():
+                try:
+                    if sse_first is not None:
+                        yield sse_first
+                    async for chunk in sse_gen:
+                        yield chunk
+                finally:
+                    await sse_gen.aclose()  # deterministic cleanup (see chat-stream path)
+
+            return StreamingResponse(_sse_with_first(), media_type="text/event-stream")
 
         try:
             result = await client.speech(
@@ -543,6 +578,8 @@ def _register_speech(app: FastAPI) -> None:
                 response_format=req.response_format,
                 speed=req.speed,
             )
+        except AdmissionRejected as exc:
+            raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
         except ClientError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         except Exception as exc:
@@ -683,25 +720,28 @@ async def _speech_audio_response(
 
     async def _body():
         nonlocal emitted_samples
-        yield first_audio_bytes
+        try:
+            yield first_audio_bytes
 
-        async for chunk in chunk_stream:
-            if chunk.audio_data is None:
-                continue
+            async for chunk in chunk_stream:
+                if chunk.audio_data is None:
+                    continue
 
-            audio_bytes, emitted_samples, sample_rate = _speech_pcm_chunk_bytes(
-                chunk,
-                emitted_samples=emitted_samples,
-                speed=speed,
-            )
-            if audio_bytes is None:
-                continue
-            if sample_rate != stream_sample_rate:
-                raise RuntimeError(
-                    "Raw PCM speech stream sample rate changed from "
-                    f"{stream_sample_rate} to {sample_rate}"
+                audio_bytes, emitted_samples, sample_rate = _speech_pcm_chunk_bytes(
+                    chunk,
+                    emitted_samples=emitted_samples,
+                    speed=speed,
                 )
-            yield audio_bytes
+                if audio_bytes is None:
+                    continue
+                if sample_rate != stream_sample_rate:
+                    raise RuntimeError(
+                        "Raw PCM speech stream sample rate changed from "
+                        f"{stream_sample_rate} to {sample_rate}"
+                    )
+                yield audio_bytes
+        finally:
+            await chunk_stream.aclose()  # deterministic cleanup on client disconnect
 
     return StreamingResponse(
         _body(),
@@ -873,6 +913,8 @@ def _register_transcriptions(app: FastAPI) -> None:
 
         try:
             result = await client.completion(gen_req, request_id=request_id)
+        except AdmissionRejected as exc:
+            raise HTTPException(status_code=429, detail=f"admission_rejected: {exc}") from exc
         except ClientError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         except Exception as exc:

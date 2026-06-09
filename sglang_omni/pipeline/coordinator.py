@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable, Sequence
 from typing import Any, AsyncIterator
 
+from sglang_omni.pipeline.admission import AdmissionContext, AdmissionPolicy, AdmissionRejected
 from sglang_omni.pipeline.control_plane import CoordinatorControlPlane
 from sglang_omni.profiler.event_recorder import emit as _emit_event
 from sglang_omni.proto import (
@@ -43,6 +44,7 @@ class Coordinator:
         terminal_stages_resolver: (
             Callable[[OmniRequest], list[str] | None] | None
         ) = None,
+        admission_policy: AdmissionPolicy | None = None,
     ):
         """Initialize coordinator.
 
@@ -52,8 +54,11 @@ class Coordinator:
             entry_stage: Name of the entry stage for new requests
             terminal_stages: Terminal stage names. When multiple are given,
                 the coordinator waits for all to complete before resolving.
+            admission_policy: Optional cross-stage admission/scheduling policy. When
+                None (default), requests are admitted immediately (fire-and-forget).
         """
         self.entry_stage = entry_stage
+        self._admission_policy = admission_policy
         self._terminal_stages: set[str] = (
             set(terminal_stages) if terminal_stages else set()
         )
@@ -137,14 +142,29 @@ class Coordinator:
 
     async def submit(self, request_id: str, request: OmniRequest | Any) -> Any:
         """Submit a request to the pipeline and wait for completion."""
-        await self._submit_request(request_id, request)
-
-        future = self._completion_futures[request_id]
         try:
-            result = await future
-            return result
+            # _submit_request is inside the try so that if the admission policy admitted
+            # the request (took an in-flight slot) but a later step fails or is cancelled
+            # before the request reaches a terminal stage, the finally still releases the
+            # slot. Otherwise the slot would leak and an in-flight-limiting gate would
+            # ratchet shut. (A SHED raises AdmissionRejected here holding no slot, so the
+            # on_complete in finally is a harmless no-op.)
+            await self._submit_request(request_id, request)
+            return await self._completion_futures[request_id]
         finally:
             self._completion_futures.pop(request_id, None)
+            self._notify_admission_complete(request_id)
+
+    def _inflight_count(self) -> int:
+        """Number of requests currently RUNNING in the pipeline (admission visibility)."""
+        return sum(
+            1 for i in self._requests.values() if i.state == RequestState.RUNNING
+        )
+
+    def _notify_admission_complete(self, request_id: str) -> None:
+        """Release any admission accounting for a request leaving the pipeline."""
+        if self._admission_policy is not None:
+            self._admission_policy.on_complete(request_id)
 
     async def stream(
         self, request_id: str, request: OmniRequest | Any
@@ -178,6 +198,7 @@ class Coordinator:
         finally:
             self._stream_queues.pop(request_id, None)
             self._completion_futures.pop(request_id, None)
+            self._notify_admission_complete(request_id)
 
     async def _submit_request(
         self, request_id: str, request: OmniRequest | Any
@@ -213,6 +234,38 @@ class Coordinator:
             data={"raw_inputs": request.inputs},
         )
 
+        # Cross-stage admission seam: a policy may gate/delay/reorder/SHED here before the
+        # request enters the entry stage. Default (None) = admit immediately = no-op.
+        if self._admission_policy is not None:
+            try:
+                await self._admission_policy.on_submit(
+                    AdmissionContext(
+                        request_id=request_id,
+                        request=request,
+                        entry_stage=self.entry_stage,
+                        inflight=self._inflight_count(),
+                    )
+                )
+            except AdmissionRejected:
+                # Shed: the request never entered the pipeline. Undo the tracking set up above
+                # (it holds no admission slot, so on_complete is a no-op) and propagate so the
+                # serve layer can return a 429. Do NOT mark FAILED — this is a deliberate drop.
+                self._requests.pop(request_id, None)
+                fut = self._completion_futures.pop(request_id, None)
+                if fut is not None and not fut.done():
+                    fut.cancel()
+                raise
+
+        # A slow-path waiter sits in _requests as PENDING across the on_submit await above, so
+        # the request may have been aborted while it waited at the gate. If so, abort() already
+        # released the slot and removed the tracking — bail without entering the pipeline (the
+        # caller's finally is a harmless no-op since the slot is gone). Without this, the resumed
+        # path would submit an already-aborted request and then KeyError updating its (popped)
+        # state below.
+        if request_id not in self._requests:
+            self._notify_admission_complete(request_id)
+            return
+
         _emit_event(
             request_id=request_id,
             stage="coordinator",
@@ -228,8 +281,11 @@ class Coordinator:
             SubmitMessage(request_id=request_id, data=payload),
         )
 
-        # Update state
-        self._requests[request_id].state = RequestState.RUNNING
+        # Update state. An abort racing the submit_to_stage await above may have removed the
+        # entry; .get() keeps that a no-op instead of a KeyError.
+        info = self._requests.get(request_id)
+        if info is not None:
+            info.state = RequestState.RUNNING
 
         logger.info(
             "Coordinator submitted req=%s to %s at %s",
@@ -263,6 +319,9 @@ class Coordinator:
 
         # Update state
         info.state = RequestState.ABORTED
+        # Release the admission slot held by this request (else its in-flight count leaks
+        # and an in-flight-limiting policy would ratchet shut over repeated aborts).
+        self._notify_admission_complete(request_id)
 
         # Resolve future with error
         if request_id in self._completion_futures:
