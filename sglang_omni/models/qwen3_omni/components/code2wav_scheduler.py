@@ -207,7 +207,17 @@ class Code2WavScheduler(StreamingSimpleScheduler):
         chunks = self._code_chunks[request_id]
         start = self._emitted[request_id]
         end = len(chunks)
-        audio = self._decode_incremental(request_id, chunks, start, end)
+        # G1 (Phase-0): bracket vocoder GPU decode for BUSY-interval reconstruction.
+        _emit_event(
+            request_id="__stage__",
+            stage=None,
+            event_name="fwd_begin",
+            metadata={"n_chunks": end - start, "mode": "vocode"},
+        )
+        try:
+            audio = self._decode_incremental(request_id, chunks, start, end)
+        finally:
+            _emit_event(request_id="__stage__", stage=None, event_name="fwd_end")
         self._emitted[request_id] = end
         messages: list[OutgoingMessage] = []
         if audio.size > 0:

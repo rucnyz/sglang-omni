@@ -10,6 +10,8 @@ from typing import Any
 import numpy as np
 import torch
 
+from sglang_omni.profiler.event_recorder import emit as _emit_event
+
 from .base import Relay, RelayOperation, register_relay
 
 logger = logging.getLogger(__name__)
@@ -136,7 +138,16 @@ class ShmRelay(Relay):
             request_id = str(uuid.uuid4())
 
         # Flow control
+        # G2 (Phase-0): time spent blocked waiting for a relay credit == upstream
+        # stage stalled by downstream backpressure. No-op when recorder is off.
+        _emit_event(
+            request_id=request_id,
+            stage=None,
+            event_name="bp_wait_begin",
+            metadata={"credits": self._sem._value, "backend": "shm"},
+        )
         await self._sem.acquire()
+        _emit_event(request_id=request_id, stage=None, event_name="bp_wait_end")
 
         try:
             # 1. Create SHM and write data

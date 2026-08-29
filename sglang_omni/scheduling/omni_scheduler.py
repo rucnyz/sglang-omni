@@ -600,11 +600,31 @@ class OmniScheduler:
         )
 
     def run_batch(self, batch, pp_proxy_tensors=None):
+        # G1 (Phase-0 bubble instrumentation): bracket the per-step forward so
+        # the offline analyzer can reconstruct this stage's BUSY intervals.
+        # No-op when the event recorder is off (zero overhead in normal serving).
+        _emit_event(
+            request_id="__stage__",
+            stage=None,
+            event_name="fwd_begin",
+            metadata={
+                "bs": len(getattr(batch, "reqs", []) or []),
+                "mode": "decode" if self._batch_is_decode(batch) else "prefill",
+                "gpu": self.gpu_id,
+            },
+        )
         try:
             return self._run_batch(batch, pp_proxy_tensors)
         except Exception as exc:
             self._handle_batch_failure(batch, exc)
             return _FAILED_BATCH_RESULT
+        finally:
+            _emit_event(
+                request_id="__stage__",
+                stage=None,
+                event_name="fwd_end",
+                metadata={"gpu": self.gpu_id},
+            )
 
     def _run_batch(self, batch, pp_proxy_tensors=None):
         """Run a batch through the model runner.

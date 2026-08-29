@@ -157,6 +157,22 @@ class Stage:
                 # Active-stage binding so ``emit(stage=None)`` from
                 # scheduler-thread descendants resolves to this stage.
                 _set_active_stage(self.name)
+                # Phase-0 bubble instrumentation: env-driven recorder auto-start
+                # so events land in a dir without the profiler control-plane
+                # dance. No-op unless SGLANG_OMNI_EVENT_DIR is set.
+                _event_dir = os.environ.get("SGLANG_OMNI_EVENT_DIR")
+                if _event_dir:
+                    try:
+                        _get_recorder().start(
+                            run_id=os.environ.get("SGLANG_OMNI_RUN_ID", "phase0"),
+                            event_dir=_event_dir,
+                            stage=self.name,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Phase-0 recorder auto-start failed for stage %s",
+                            self.name,
+                        )
                 try:
                     if self.gpu_id is not None:
                         import torch

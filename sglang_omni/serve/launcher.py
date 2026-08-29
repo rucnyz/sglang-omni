@@ -306,6 +306,23 @@ async def _run_server(
     await mp_runner.start(timeout=startup_timeout)
     coordinator = mp_runner.coordinator
 
+    # Phase-0 hardening: env-driven recorder auto-start in the COORDINATOR
+    # (main) process so request_admission / terminal_response events are
+    # captured. Without these the offline analyzer's in-flight curve never
+    # reaches 0 and STARVED/IDLE cannot be distinguished. No-op unless
+    # SGLANG_OMNI_EVENT_DIR is set.
+    _ev_dir = os.environ.get("SGLANG_OMNI_EVENT_DIR")
+    if _ev_dir:
+        try:
+            _get_event_recorder().start(
+                run_id=os.environ.get("SGLANG_OMNI_RUN_ID", "phase0"),
+                event_dir=_ev_dir,
+                stage="coordinator",
+            )
+        except Exception:
+            logger.warning("Phase-0 coordinator recorder auto-start failed",
+                           exc_info=True)
+
     # Plans are resolved once inside ``mp_runner.start()`` (which applies
     # stage fusion); read them back from the runner for logging rather than
     # recomputing on the un-fused config.
