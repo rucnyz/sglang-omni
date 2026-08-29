@@ -1,0 +1,47 @@
+[
+  {
+    "segment": "disagg_c1",
+    "gpus": 2,
+    "window_s": 33.9,
+    "N": 6,
+    "rps": 0.184,
+    "gpu_work_per_req_s": 4.91,
+    "ceiling_rps": 0.41,
+    "per_gpu_union": [
+      0.125,
+      0.745
+    ],
+    "gpu_efficiency": 0.435,
+    "optimality_gap": 0.565
+  },
+  {
+    "segment": "disagg_c4",
+    "gpus": 2,
+    "window_s": 39.4,
+    "N": 16,
+    "rps": 0.421,
+    "gpu_work_per_req_s": 2.34,
+    "ceiling_rps": 0.85,
+    "per_gpu_union": [
+      0.23399999999999999,
+      0.7170000000000001
+    ],
+    "gpu_efficiency": 0.476,
+    "optimality_gap": 0.524
+  },
+  {
+    "segment": "disagg_c8",
+    "gpus": 2,
+    "window_s": 43.6,
+    "N": 24,
+    "rps": 0.567,
+    "gpu_work_per_req_s": 1.916,
+    "ceiling_rps": 1.04,
+    "per_gpu_union": [
+      0.27699999999999997,
+      0.778
+    ],
+    "gpu_efficiency": 0.527,
+    "optimality_gap": 0.473
+  }
+]

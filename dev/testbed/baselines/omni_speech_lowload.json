@@ -1,0 +1,41 @@
+{
+  "id": "omni_speech_lowload",
+  "server": "qwen3_omni_coloc",
+  "tags": [
+    "omni",
+    "speech",
+    "lowload"
+  ],
+  "workload": {
+    "client": "omni_chat",
+    "modalities": [
+      "text",
+      "audio"
+    ],
+    "max_tokens": 32,
+    "think_time": 3.0
+  },
+  "closed_loop": true,
+  "repeats": 3,
+  "points": [
+    {
+      "concurrency": 2,
+      "repeats": 3,
+      "ttft_mean": 0.08726567322931562,
+      "ttft_mean_std": 0.0049016532293483656,
+      "ttfa_mean": 0.6098563972530732,
+      "ttfa_mean_std": 0.013057985984165278,
+      "ttfa_p95": 0.708682153664995,
+      "ttfa_p95_std": 0.04521836978474382,
+      "total_mean": 2.175179704936454,
+      "total_mean_std": 0.034067916639797975,
+      "frame_gap_max": 0.26283595332643017,
+      "frame_gap_max_std": 0.018283536220310505,
+      "throughput_rps": 0.38556624746395923,
+      "throughput_rps_std": 0.002613935517273767,
+      "ok": 48,
+      "total": 48,
+      "errors": []
+    }
+  ]
+}

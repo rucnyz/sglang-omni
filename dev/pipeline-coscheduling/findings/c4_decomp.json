@@ -1,0 +1,80 @@
+{
+  "window_ms": 35569.086044,
+  "stages": [
+    {
+      "stage": "mm_aggregate",
+      "window_ms": 35569.09,
+      "busy_ms": 0.0,
+      "starved_ms": 35567.45,
+      "blocked_ms": 1.64,
+      "idle_ms": 0.0,
+      "busy_pct": 0.0,
+      "starved_pct": 100.0,
+      "blocked_pct": 0.0,
+      "idle_pct": 0.0,
+      "bubble_pct": 100.0,
+      "backpressure_stall_ms": 1.64,
+      "backpressure_events": 32
+    },
+    {
+      "stage": "preprocessing",
+      "window_ms": 35569.09,
+      "busy_ms": 0.0,
+      "starved_ms": 35567.8,
+      "blocked_ms": 1.29,
+      "idle_ms": 0.0,
+      "busy_pct": 0.0,
+      "starved_pct": 100.0,
+      "blocked_pct": 0.0,
+      "idle_pct": 0.0,
+      "bubble_pct": 100.0,
+      "backpressure_stall_ms": 1.29,
+      "backpressure_events": 16
+    },
+    {
+      "stage": "thinker",
+      "window_ms": 35569.09,
+      "busy_ms": 11239.89,
+      "starved_ms": 24261.69,
+      "blocked_ms": 67.5,
+      "idle_ms": 0.0,
+      "busy_pct": 31.6,
+      "starved_pct": 68.2,
+      "blocked_pct": 0.2,
+      "idle_pct": 0.0,
+      "bubble_pct": 68.4,
+      "backpressure_stall_ms": 82.35,
+      "backpressure_events": 1418
+    },
+    {
+      "stage": "code2wav",
+      "window_ms": 35569.09,
+      "busy_ms": 15663.34,
+      "starved_ms": 19905.74,
+      "blocked_ms": 0.0,
+      "idle_ms": 0.0,
+      "busy_pct": 44.0,
+      "starved_pct": 56.0,
+      "blocked_pct": 0.0,
+      "idle_pct": 0.0,
+      "bubble_pct": 56.0,
+      "backpressure_stall_ms": 0.0,
+      "backpressure_events": 0
+    },
+    {
+      "stage": "talker_ar",
+      "window_ms": 35569.09,
+      "busy_ms": 29202.91,
+      "starved_ms": 6365.46,
+      "blocked_ms": 0.71,
+      "idle_ms": 0.0,
+      "busy_pct": 82.1,
+      "starved_pct": 17.9,
+      "blocked_pct": 0.0,
+      "idle_pct": 0.0,
+      "bubble_pct": 17.9,
+      "backpressure_stall_ms": 0.87,
+      "backpressure_events": 16
+    }
+  ]
+}

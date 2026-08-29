@@ -1,0 +1,5 @@
+# generated experiment artifacts — not source
+results/
+triton_cache/
+__pycache__/
+_*.log

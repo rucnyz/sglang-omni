@@ -1,0 +1,83 @@
+[
+  {
+    "segment": "disagg_c1",
+    "C": "1",
+    "N": "6",
+    "mods": "text,audio",
+    "mt": "256",
+    "gpu_union_busy_pct": 85.5,
+    "nvml_mean_pct": 33.6,
+    "stages": {
+      "thinker": {
+        "duty_busy": 13.0,
+        "stage_idle": 87.0
+      },
+      "talker_ar": {
+        "duty_busy": 75.5,
+        "stage_idle": 24.5
+      },
+      "code2wav": {
+        "duty_busy": 23.8,
+        "stage_idle": 76.2
+      }
+    },
+    "per_gpu_union_busy": {
+      "0": 12.5,
+      "1": 74.5
+    }
+  },
+  {
+    "segment": "disagg_c4",
+    "C": "4",
+    "N": "16",
+    "mods": "text,audio",
+    "mt": "256",
+    "gpu_union_busy_pct": 85.5,
+    "nvml_mean_pct": 32.4,
+    "stages": {
+      "thinker": {
+        "duty_busy": 24.2,
+        "stage_idle": 75.8
+      },
+      "talker_ar": {
+        "duty_busy": 68.2,
+        "stage_idle": 31.8
+      },
+      "code2wav": {
+        "duty_busy": 44.5,
+        "stage_idle": 55.5
+      }
+    },
+    "per_gpu_union_busy": {
+      "0": 23.4,
+      "1": 71.7
+    }
+  },
+  {
+    "segment": "disagg_c8",
+    "C": "8",
+    "N": "24",
+    "mods": "text,audio",
+    "mt": "256",
+    "gpu_union_busy_pct": 87.4,
+    "nvml_mean_pct": 32.1,
+    "stages": {
+      "thinker": {
+        "duty_busy": 28.6,
+        "stage_idle": 71.4
+      },
+      "talker_ar": {
+        "duty_busy": 67.7,
+        "stage_idle": 32.3
+      },
+      "code2wav": {
+        "duty_busy": 64.6,
+        "stage_idle": 35.4
+      }
+    },
+    "per_gpu_union_busy": {
+      "0": 27.7,
+      "1": 77.8
+    }
+  }
+]

@@ -1,0 +1,212 @@
+[
+  {
+    "segment": "sweep2_c16_r1",
+    "gpus": 1,
+    "window_s": 18.7,
+    "N": 48,
+    "rps": 2.757,
+    "gpu_work_per_req_s": 0.34,
+    "ceiling_rps": 2.94,
+    "per_gpu_union": [
+      0.871
+    ],
+    "gpu_efficiency": 0.871,
+    "optimality_gap": 0.129
+  },
+  {
+    "segment": "sweep2_c16_r2",
+    "gpus": 1,
+    "window_s": 19.3,
+    "N": 48,
+    "rps": 2.672,
+    "gpu_work_per_req_s": 0.36,
+    "ceiling_rps": 2.78,
+    "per_gpu_union": [
+      0.897
+    ],
+    "gpu_efficiency": 0.897,
+    "optimality_gap": 0.103
+  },
+  {
+    "segment": "sweep2_c16_r3",
+    "gpus": 1,
+    "window_s": 18.4,
+    "N": 48,
+    "rps": 2.81,
+    "gpu_work_per_req_s": 0.344,
+    "ceiling_rps": 2.91,
+    "per_gpu_union": [
+      0.897
+    ],
+    "gpu_efficiency": 0.897,
+    "optimality_gap": 0.103
+  },
+  {
+    "segment": "sweep2_c1_r1",
+    "gpus": 1,
+    "window_s": 11.8,
+    "N": 8,
+    "rps": 0.763,
+    "gpu_work_per_req_s": 1.151,
+    "ceiling_rps": 0.87,
+    "per_gpu_union": [
+      0.7809999999999999
+    ],
+    "gpu_efficiency": 0.781,
+    "optimality_gap": 0.219
+  },
+  {
+    "segment": "sweep2_c1_r2",
+    "gpus": 1,
+    "window_s": 12.1,
+    "N": 8,
+    "rps": 0.738,
+    "gpu_work_per_req_s": 1.199,
+    "ceiling_rps": 0.83,
+    "per_gpu_union": [
+      0.7909999999999999
+    ],
+    "gpu_efficiency": 0.791,
+    "optimality_gap": 0.209
+  },
+  {
+    "segment": "sweep2_c1_r3",
+    "gpus": 1,
+    "window_s": 11.6,
+    "N": 8,
+    "rps": 0.775,
+    "gpu_work_per_req_s": 1.152,
+    "ceiling_rps": 0.87,
+    "per_gpu_union": [
+      0.7929999999999999
+    ],
+    "gpu_efficiency": 0.793,
+    "optimality_gap": 0.207
+  },
+  {
+    "segment": "sweep2_c2_r1",
+    "gpus": 1,
+    "window_s": 8.2,
+    "N": 8,
+    "rps": 1.137,
+    "gpu_work_per_req_s": 0.801,
+    "ceiling_rps": 1.25,
+    "per_gpu_union": [
+      0.778
+    ],
+    "gpu_efficiency": 0.778,
+    "optimality_gap": 0.222
+  },
+  {
+    "segment": "sweep2_c2_r2",
+    "gpus": 1,
+    "window_s": 9.2,
+    "N": 8,
+    "rps": 1.021,
+    "gpu_work_per_req_s": 0.889,
+    "ceiling_rps": 1.12,
+    "per_gpu_union": [
+      0.777
+    ],
+    "gpu_efficiency": 0.777,
+    "optimality_gap": 0.223
+  },
+  {
+    "segment": "sweep2_c2_r3",
+    "gpus": 1,
+    "window_s": 9.4,
+    "N": 8,
+    "rps": 0.986,
+    "gpu_work_per_req_s": 0.921,
+    "ceiling_rps": 1.09,
+    "per_gpu_union": [
+      0.782
+    ],
+    "gpu_efficiency": 0.782,
+    "optimality_gap": 0.218
+  },
+  {
+    "segment": "sweep2_c4_r1",
+    "gpus": 1,
+    "window_s": 8.9,
+    "N": 12,
+    "rps": 1.582,
+    "gpu_work_per_req_s": 0.584,
+    "ceiling_rps": 1.71,
+    "per_gpu_union": [
+      0.79
+    ],
+    "gpu_efficiency": 0.79,
+    "optimality_gap": 0.21
+  },
+  {
+    "segment": "sweep2_c4_r2",
+    "gpus": 1,
+    "window_s": 9.0,
+    "N": 12,
+    "rps": 1.563,
+    "gpu_work_per_req_s": 0.588,
+    "ceiling_rps": 1.7,
+    "per_gpu_union": [
+      0.785
+    ],
+    "gpu_efficiency": 0.785,
+    "optimality_gap": 0.215
+  },
+  {
+    "segment": "sweep2_c4_r3",
+    "gpus": 1,
+    "window_s": 10.0,
+    "N": 12,
+    "rps": 1.375,
+    "gpu_work_per_req_s": 0.675,
+    "ceiling_rps": 1.48,
+    "per_gpu_union": [
+      0.807
+    ],
+    "gpu_efficiency": 0.807,
+    "optimality_gap": 0.193
+  },
+  {
+    "segment": "sweep2_c8_r1",
+    "gpus": 1,
+    "window_s": 15.3,
+    "N": 24,
+    "rps": 1.715,
+    "gpu_work_per_req_s": 0.556,
+    "ceiling_rps": 1.8,
+    "per_gpu_union": [
+      0.873
+    ],
+    "gpu_efficiency": 0.873,
+    "optimality_gap": 0.127
+  },
+  {
+    "segment": "sweep2_c8_r2",
+    "gpus": 1,
+    "window_s": 12.3,
+    "N": 24,
+    "rps": 2.177,
+    "gpu_work_per_req_s": 0.431,
+    "ceiling_rps": 2.32,
+    "per_gpu_union": [
+      0.8390000000000001
+    ],
+    "gpu_efficiency": 0.839,
+    "optimality_gap": 0.161
+  },
+  {
+    "segment": "sweep2_c8_r3",
+    "gpus": 1,
+    "window_s": 12.4,
+    "N": 24,
+    "rps": 2.168,
+    "gpu_work_per_req_s": 0.434,
+    "ceiling_rps": 2.3,
+    "per_gpu_union": [
+      0.8440000000000001
+    ],
+    "gpu_efficiency": 0.844,
+    "optimality_gap": 0.156
+  }
+]

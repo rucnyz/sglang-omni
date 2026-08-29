@@ -1,0 +1,14 @@
+# Machine-generated artifacts — regenerable, not source. Kept out of git.
+# See UPSTREAM_REBASE_ASSESSMENT.md "what is not in this branch" for how to rebuild.
+.ccache/
+triton_cache/
+__pycache__/
+buildtmp/
+wheels/
+results/
+logs/
+events_*/
+*.sqlite
+*.nsys-rep
+*.whl
+*.pyc

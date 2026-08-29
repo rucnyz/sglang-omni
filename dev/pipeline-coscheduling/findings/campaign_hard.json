@@ -1,0 +1,130 @@
+[
+  {
+    "segment": "hard_c1",
+    "C": "1",
+    "N": "8",
+    "mods": "text,audio",
+    "mt": "32",
+    "gpu_union_busy_pct": 78.6,
+    "nvml_mean_pct": 58.7,
+    "stages": {
+      "thinker": {
+        "duty_busy": 14.8,
+        "stage_idle": 85.2
+      },
+      "talker_ar": {
+        "duty_busy": 59.8,
+        "stage_idle": 40.2
+      },
+      "code2wav": {
+        "duty_busy": 19.8,
+        "stage_idle": 80.2
+      }
+    },
+    "per_gpu_union_busy": {}
+  },
+  {
+    "segment": "hard_c4",
+    "C": "4",
+    "N": "24",
+    "mods": "text,audio",
+    "mt": "32",
+    "gpu_union_busy_pct": 86.7,
+    "nvml_mean_pct": 72.3,
+    "stages": {
+      "thinker": {
+        "duty_busy": 30.3,
+        "stage_idle": 69.7
+      },
+      "talker_ar": {
+        "duty_busy": 77.3,
+        "stage_idle": 22.7
+      },
+      "code2wav": {
+        "duty_busy": 46.4,
+        "stage_idle": 53.6
+      }
+    },
+    "per_gpu_union_busy": {}
+  },
+  {
+    "segment": "hard_c8",
+    "C": "8",
+    "N": "32",
+    "mods": "text,audio",
+    "mt": "32",
+    "gpu_union_busy_pct": 87.8,
+    "nvml_mean_pct": 61.0,
+    "stages": {
+      "thinker": {
+        "duty_busy": 25.8,
+        "stage_idle": 74.2
+      },
+      "talker_ar": {
+        "duty_busy": 78.0,
+        "stage_idle": 22.0
+      },
+      "code2wav": {
+        "duty_busy": 53.5,
+        "stage_idle": 46.5
+      }
+    },
+    "per_gpu_union_busy": {}
+  },
+  {
+    "segment": "hard_text_c1",
+    "C": "1",
+    "N": "8",
+    "mods": "text",
+    "mt": "32",
+    "gpu_union_busy_pct": 46.6,
+    "nvml_mean_pct": 35.2,
+    "stages": {
+      "thinker": {
+        "duty_busy": 46.6,
+        "stage_idle": 53.4
+      }
+    },
+    "per_gpu_union_busy": {}
+  },
+  {
+    "segment": "hard_text_c8",
+    "C": "8",
+    "N": "32",
+    "mods": "text",
+    "mt": "32",
+    "gpu_union_busy_pct": 56.1,
+    "nvml_mean_pct": 36.4,
+    "stages": {
+      "thinker": {
+        "duty_busy": 56.1,
+        "stage_idle": 43.9
+      }
+    },
+    "per_gpu_union_busy": {}
+  },
+  {
+    "segment": "hard_mix_c8",
+    "C": "8",
+    "N": "32",
+    "mods": "text,audio",
+    "mt": "32",
+    "gpu_union_busy_pct": 85.9,
+    "nvml_mean_pct": 71.5,
+    "stages": {
+      "thinker": {
+        "duty_busy": 28.7,
+        "stage_idle": 71.3
+      },
+      "talker_ar": {
+        "duty_busy": 61.6,
+        "stage_idle": 38.4
+      },
+      "code2wav": {
+        "duty_busy": 60.2,
+        "stage_idle": 39.8
+      }
+    },
+    "per_gpu_union_busy": {}
+  }
+]

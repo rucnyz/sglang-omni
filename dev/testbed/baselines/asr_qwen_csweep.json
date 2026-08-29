@@ -1,0 +1,91 @@
+{
+  "id": "asr_qwen_csweep",
+  "server": "qwen3_asr",
+  "tags": [
+    "asr",
+    "throughput"
+  ],
+  "workload": {
+    "client": "asr_transcribe"
+  },
+  "closed_loop": true,
+  "repeats": 3,
+  "points": [
+    {
+      "concurrency": 1,
+      "repeats": 3,
+      "ttft_mean": 0.1085567092830186,
+      "ttft_mean_std": 0.00035130755401076476,
+      "ttfa_mean": null,
+      "ttfa_mean_std": 0.0,
+      "ttfa_p95": null,
+      "ttfa_p95_std": 0.0,
+      "total_mean": 0.1085567092830186,
+      "total_mean_std": 0.00035130755401076476,
+      "frame_gap_max": null,
+      "frame_gap_max_std": 0.0,
+      "throughput_rps": 9.159131034837072,
+      "throughput_rps_std": 0.025611789243759134,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 4,
+      "repeats": 3,
+      "ttft_mean": 0.28157716024280594,
+      "ttft_mean_std": 0.031983668819998964,
+      "ttfa_mean": null,
+      "ttfa_mean_std": 0.0,
+      "ttfa_p95": null,
+      "ttfa_p95_std": 0.0,
+      "total_mean": 0.28157716024280594,
+      "total_mean_std": 0.031983668819998964,
+      "frame_gap_max": null,
+      "frame_gap_max_std": 0.0,
+      "throughput_rps": 14.197155523090004,
+      "throughput_rps_std": 1.5058880563333659,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 8,
+      "repeats": 3,
+      "ttft_mean": 0.4528746812211466,
+      "ttft_mean_std": 0.019721369018832126,
+      "ttfa_mean": null,
+      "ttfa_mean_std": 0.0,
+      "ttfa_p95": null,
+      "ttfa_p95_std": 0.0,
+      "total_mean": 0.4528746812211466,
+      "total_mean_std": 0.019721369018832126,
+      "frame_gap_max": null,
+      "frame_gap_max_std": 0.0,
+      "throughput_rps": 17.484081125023206,
+      "throughput_rps_std": 0.7437827432861054,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    },
+    {
+      "concurrency": 16,
+      "repeats": 3,
+      "ttft_mean": 0.8585823599945192,
+      "ttft_mean_std": 0.07593234709796626,
+      "ttfa_mean": null,
+      "ttfa_mean_std": 0.0,
+      "ttfa_p95": null,
+      "ttfa_p95_std": 0.0,
+      "total_mean": 0.8585823599945192,
+      "total_mean_std": 0.07593234709796626,
+      "frame_gap_max": null,
+      "frame_gap_max_std": 0.0,
+      "throughput_rps": 18.45479482860435,
+      "throughput_rps_std": 1.5477985629926971,
+      "ok": 144,
+      "total": 144,
+      "errors": []
+    }
+  ]
+}

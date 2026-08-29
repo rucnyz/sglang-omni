@@ -1,0 +1,246 @@
+[
+  {
+    "segment": "sweep_c1",
+    "C": "1",
+    "N": "6",
+    "mods": "text,audio",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 12.3,
+        "bubble": 87.7,
+        "starved": 87.6,
+        "blocked": 0.1
+      },
+      "talker_ar": {
+        "busy": 77.4,
+        "bubble": 22.6,
+        "starved": 22.6,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 23.4,
+        "bubble": 76.6,
+        "starved": 76.6,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 29.0
+  },
+  {
+    "segment": "sweep_c2",
+    "C": "2",
+    "N": "8",
+    "mods": "text,audio",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 23.8,
+        "bubble": 76.2,
+        "starved": 76.1,
+        "blocked": 0.1
+      },
+      "talker_ar": {
+        "busy": 87.6,
+        "bubble": 12.4,
+        "starved": 12.4,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 36.9,
+        "bubble": 63.1,
+        "starved": 63.1,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 41.0
+  },
+  {
+    "segment": "sweep_c4",
+    "C": "4",
+    "N": "16",
+    "mods": "text,audio",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 28.6,
+        "bubble": 71.4,
+        "starved": 71.3,
+        "blocked": 0.2
+      },
+      "talker_ar": {
+        "busy": 87.1,
+        "bubble": 12.9,
+        "starved": 12.9,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 53.2,
+        "bubble": 46.8,
+        "starved": 46.8,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 74.0
+  },
+  {
+    "segment": "sweep_c8",
+    "C": "8",
+    "N": "24",
+    "mods": "text,audio",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 33.2,
+        "bubble": 66.8,
+        "starved": 66.6,
+        "blocked": 0.2
+      },
+      "talker_ar": {
+        "busy": 86.7,
+        "bubble": 13.3,
+        "starved": 13.3,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 68.8,
+        "bubble": 31.2,
+        "starved": 31.2,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 98.0
+  },
+  {
+    "segment": "sweep_c16",
+    "C": "16",
+    "N": "32",
+    "mods": "text,audio",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 29.1,
+        "bubble": 70.9,
+        "starved": 70.8,
+        "blocked": 0.1
+      },
+      "talker_ar": {
+        "busy": 82.7,
+        "bubble": 17.3,
+        "starved": 17.3,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 84.0,
+        "bubble": 16.0,
+        "starved": 16.0,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 109.0
+  },
+  {
+    "segment": "text_c1",
+    "C": "1",
+    "N": "6",
+    "mods": "text",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 81.6,
+        "bubble": 18.4,
+        "starved": 17.8,
+        "blocked": 0.6
+      }
+    },
+    "thinker_bp_ms": 29.0
+  },
+  {
+    "segment": "text_c4",
+    "C": "4",
+    "N": "16",
+    "mods": "text",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 83.6,
+        "bubble": 16.4,
+        "starved": 15.9,
+        "blocked": 0.5
+      }
+    },
+    "thinker_bp_ms": 51.0
+  },
+  {
+    "segment": "text_c8",
+    "C": "8",
+    "N": "24",
+    "mods": "text",
+    "mt": "256",
+    "stages": {
+      "thinker": {
+        "busy": 84.5,
+        "bubble": 15.5,
+        "starved": 15.0,
+        "blocked": 0.5
+      }
+    },
+    "thinker_bp_ms": 75.0
+  },
+  {
+    "segment": "audio_short",
+    "C": "4",
+    "N": "16",
+    "mods": "text,audio",
+    "mt": "64",
+    "stages": {
+      "thinker": {
+        "busy": 33.5,
+        "bubble": 66.5,
+        "starved": 66.3,
+        "blocked": 0.2
+      },
+      "talker_ar": {
+        "busy": 84.8,
+        "bubble": 15.2,
+        "starved": 15.2,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 48.7,
+        "bubble": 51.3,
+        "starved": 51.3,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 32.0
+  },
+  {
+    "segment": "audio_long",
+    "C": "4",
+    "N": "12",
+    "mods": "text,audio",
+    "mt": "512",
+    "stages": {
+      "thinker": {
+        "busy": 24.8,
+        "bubble": 75.2,
+        "starved": 75.0,
+        "blocked": 0.1
+      },
+      "talker_ar": {
+        "busy": 86.6,
+        "bubble": 13.4,
+        "starved": 13.4,
+        "blocked": 0.0
+      },
+      "code2wav": {
+        "busy": 48.4,
+        "bubble": 51.6,
+        "starved": 51.6,
+        "blocked": 0.0
+      }
+    },
+    "thinker_bp_ms": 90.0
+  }
+]
